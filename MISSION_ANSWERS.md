@@ -115,7 +115,7 @@ Cả hai trả `HTTP/1.1 200 OK`, header `Server: nginx`. Health trả `status: 
 
 https://k5-l3a-day14-nguyenthuyduong-2a202603388-deploym-production.up.railway.app
 
-Kiểm tra ngày 25/11/2026: health 200, ready 200, POST /ask thiếu key 401, đúng key 200. Chi tiết cấu hình và lệnh kiểm tra ở `DEPLOYMENT.md`. Đã lưu `screenshots/dashboard.png`, `screenshots/running.png`, `screenshots/test.png`. Còn cần bổ sung so sánh Railway/Render và mô tả pipeline Cloud Run để hoàn thiện hồ sơ Part 3.
+Kiểm tra ngày 25/11/2026: health 200, ready 200, POST /ask thiếu key 401, đúng key 200. Chi tiết cấu hình và lệnh kiểm tra ở `DEPLOYMENT.md`. Đã lưu `screenshots/dashboard.png`, `screenshots/running.png`, `screenshots/test.png`. So sánh Railway/Render và mô tả pipeline Cloud Run ở các mục dưới đây.
 
 ### So sánh railway.toml và render.yaml — Exercise 3.2
 
@@ -268,7 +268,7 @@ Result: 12/12 tiêu chí đạt · 41/41 checks passed
 
 Số đo trong lần chạy này: build image 21 giây; dung lượng image theo script 273 MB; `docker stop` exit code 0 trong 0.6 giây. Runtime hai worker: rate limit trả 429 sau 5 request và vẫn 429 sau restart; mất Redis thì ready 503 nhưng health 200; SIGTERM khi request đang xử lý vẫn hoàn thành 200, process thoát code 0; 14 dòng log app là JSON hợp lệ.
 
-Giới hạn: mục Public URL ready của lần chạy này chỉ kiểm tra file cấu hình Railway và PORT. Chưa deploy cloud, chưa có public URL; phần Deployment của bài vẫn cần hoàn thành tại CP6.
+Mục Public URL ready của lần chạy này chỉ kiểm tra file cấu hình Railway và PORT. Sau đó đã hoàn thành CP6: deploy Railway cùng Redis, kiểm tra public URL và lưu ảnh; xem Part 3 và DEPLOYMENT.md.
 
 ## AI log
 
@@ -286,7 +286,14 @@ Giới hạn: mục Public URL ready của lần chạy này chỉ kiểm tra fi
 - Hai lượt Locust đầu bị compose run tự đưa topology về 2 agent dù trước đó đã up --scale 1 hoặc 3. AI phát hiện qua ps/log, loại các lượt này khỏi so sánh 1-vs-3, giữ nguyên bằng chứng trong reports/observability/discarded_two_instances. Script được sửa thêm --no-deps và kiểm tra số agent trước/sau; chạy lại là để sửa phép đo sai topology, không phải chọn số đẹp.
 - Thí nghiệm chaos A+B thực tế trên 2 agent: error rate 0.2, slow rate 0.3, 30 users. AgentHighErrorRate được quan sát firing sau 103.9 giây; AgentHighLatencyP95 sau 164 giây, cùng firing trong alerts_firing.json. Poll 10 giây; số này tính từ lúc bắt đầu áp dụng cấu hình, không phải độ trễ chính xác tới mili giây.
 - Jaeger API cũ trả 404; AI chuyển sang API v3 theo tài liệu Jaeger, lưu raw trace và chọn trace có log cùng trace_id. Bằng chứng nằm trong reports/observability/slow_trace.json, error_trace.json và trace_summary.json. Dùng truy vấn bổ sung duration >=1s để tìm tail latency.
-- Công cụ trình duyệt báo browser access host unavailable, nên chưa chụp được bốn ảnh Part 7. Không dùng ảnh dựng hoặc khai ảnh đã có.
+- Công cụ trình duyệt báo browser access host unavailable; người học sau đó tự chụp và lưu đủ bốn ảnh Part 7 từ giao diện thật. AI đối chiếu ảnh được gửi: Grafana có tải, trace chậm, trace 503 với event exception, và ba alert cùng firing. Không dùng ảnh dựng.
+
+### Hoàn tất bằng chứng Part 7
+
+- Đã chạy lại scaling với --no-deps và kiểm tra topology trước/sau: đúng 1 và 3 agent. CSV /ask lần lượt ghi 59.342 và 60.001 RPS, p95 270 và 230 ms. Bảng báo cáo lấy trực tiếp CSV cuối.
+- Đã thu raw trace, log có cùng trace_id và snapshot Prometheus. Người học lưu đủ 7 ảnh bài nộp, gồm 3 ảnh deploy và 4 ảnh Part 7.
+- Phiên capture bổ sung dùng 2 agent, fault injection như lượt chaos và Locust 30 users. Ảnh Alerts thấy AgentHighErrorRate, AgentHighLatencyP95 và LLMCostBurnRateHigh cùng firing. Không thay thời gian đo ban đầu bằng thời gian của ảnh chụp sau.
+- Một thay đổi chỉ nhằm chỉnh stdout UTF-8 trong script chấm được phát hiện trước khi commit; đã lưu diff riêng ngoài repo và bỏ thay đổi để file chấm khớp bản gốc. Golden dataset giữ nguyên.
 
 ### Hỗ trợ Part 3 — Railway
 

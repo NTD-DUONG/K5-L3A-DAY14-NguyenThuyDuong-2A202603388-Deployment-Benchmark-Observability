@@ -63,12 +63,12 @@ Dòng log JSON có cùng trace_id:
 
 ### 4.4 Ảnh minh chứng
 
-Cần chụp từ giao diện thật. Công cụ trình duyệt báo host unavailable nên AI chưa lưu được bốn ảnh dưới đây; không thay thế bằng ảnh dựng lại từ số liệu.
+Người học đã chụp và lưu bốn ảnh từ giao diện thật trong phiên tải capture bổ sung, cùng cấu hình chaos 2 agent. Ảnh Alerts thấy error-rate, latency và cost alert cùng firing. Capture bổ sung phục vụ ảnh minh chứng; thời gian tới firing ở mục 4.2 vẫn lấy từ lượt đo chaos ban đầu.
 
-- [ ] screenshots/grafana-dashboard.png — dashboard khi Locust đang có tải.
-- [ ] screenshots/jaeger-slow-trace.png — trace chậm ở link trên.
-- [ ] screenshots/jaeger-error-trace.png — trace lỗi, mở event exception.
-- [ ] screenshots/prometheus-alert-firing.png — cùng lúc hai alert firing.
+- [x] [Grafana dashboard](screenshots/grafana-dashboard.png) — dashboard khi Locust đang có tải.
+- [x] [Jaeger slow trace](screenshots/jaeger-slow-trace.png) — trace chậm ở link trên.
+- [x] [Jaeger error trace](screenshots/jaeger-error-trace.png) — trace lỗi, mở event exception.
+- [x] [Prometheus Alerts](screenshots/prometheus-alert-firing.png) — cùng lúc ít nhất hai alert firing.
 
 ## 5. Benchmark scaling
 
