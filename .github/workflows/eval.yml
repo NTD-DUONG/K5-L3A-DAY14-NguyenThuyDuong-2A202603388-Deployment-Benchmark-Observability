@@ -1,0 +1,48 @@
+name: Agent quality gate
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 06-lab-complete/benchmark-observability/develop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r requirements.txt
+      - name: Start agent and evaluate fixed knowledge base
+        env:
+          AGENT_VERSION: v2
+          MOCK_ERROR_RATE: "0"
+          PORT: "8002"
+        run: |
+          set -euo pipefail
+          python app.py > agent.log 2>&1 &
+          agent_pid=$!
+          trap 'kill "$agent_pid" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          import time, urllib.request
+          for attempt in range(60):
+              try:
+                  urllib.request.urlopen('http://localhost:8002/health', timeout=1).close()
+                  break
+              except Exception:
+                  time.sleep(0.5)
+          else:
+              raise SystemExit('Agent failed to start')
+          PY
+          python eval/run_eval.py --url http://localhost:8002 --min-accuracy 0.85 --out reports/ci_eval.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-gate-evidence
+          path: |
+            06-lab-complete/benchmark-observability/develop/reports/ci_eval.json
+            06-lab-complete/benchmark-observability/develop/agent.log

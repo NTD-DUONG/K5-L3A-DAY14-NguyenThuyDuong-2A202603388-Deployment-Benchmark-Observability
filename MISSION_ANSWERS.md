@@ -2,6 +2,20 @@
 
 ## Part 1 — Localhost vs Production
 
+### Exercise 1.1 — Anti-patterns
+
+Trong `develop/app.py`: (1) API key và database URL hardcode; (2) DEBUG/MAX_TOKENS cố định; (3) print thay logging có mức độ; (4) in secret ra log; (5) không có route /health; (6) bind localhost và cố định cổng 8000; (7) reload luôn bật. Các điểm này làm lộ thông tin, khó cấu hình cloud và thiếu tín hiệu giám sát. Uvicorn vẫn có xử lý shutdown mặc định, nhưng app chưa có cleanup tài nguyên riêng.
+
+### Exercise 1.2 — Chạy develop
+
+Người học cài dependencies trong venv Ubuntu WSL và chạy `python app.py`, sau đó:
+
+```bash
+curl -i -X POST "http://localhost:8000/ask?question=Hello"
+```
+
+Log thực tế xác nhận `POST /ask?question=Hello HTTP/1.1` trả `200 OK`; response mock: “Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã được nhận.” Đồng thời log in API key giả, minh họa nguy cơ ghi secret. Bản production cũng đã được chạy và kiểm tra health/ask trả 200.
+
 ### Exercise 1.3 — So sánh develop và production
 
 Đối chiếu `01-localhost-vs-production/develop/app.py`, `production/app.py` và `production/config.py`:
@@ -94,6 +108,26 @@ Cả hai trả `HTTP/1.1 200 OK`, header `Server: nginx`. Health trả `status: 
 ```json
 {"answer":"Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã được nhận."}
 ```
+
+## Part 3 — Cloud Deployment
+
+Đã deploy agent Part 6 lên Railway cùng service Redis. URL public:
+
+https://k5-l3a-day14-nguyenthuyduong-2a202603388-deploym-production.up.railway.app
+
+Kiểm tra ngày 25/11/2026: health 200, ready 200, POST /ask thiếu key 401, đúng key 200. Chi tiết cấu hình và lệnh kiểm tra ở `DEPLOYMENT.md`. Đã lưu `screenshots/dashboard.png`, `screenshots/running.png`, `screenshots/test.png`. Còn cần bổ sung so sánh Railway/Render và mô tả pipeline Cloud Run để hoàn thiện hồ sơ Part 3.
+
+### So sánh railway.toml và render.yaml — Exercise 3.2
+
+Đối chiếu các file mẫu ở `03-cloud-deployment/`: Railway dùng TOML với các section `[build]`, `[deploy]`, khai báo builder NIXPACKS, startCommand dùng `$PORT`, healthcheck và chính sách restart cho service. Render dùng YAML với danh sách `services`, khai báo web service cùng Redis, region, plan, runtime Python, buildCommand/startCommand và envVars. Render minh họa `sync: false` để nhập secret qua dashboard và `generateValue: true` để tạo secret. Vì vậy hai file có cùng mục tiêu tự động hóa deploy nhưng khác schema, phạm vi khai báo tài nguyên và cách quản lý biến/secret. Bài làm Part 6 dùng Railway Dockerfile builder thay NIXPACKS của mẫu, Redis được tạo riêng trên dashboard rồi nối bằng variable reference. Không deploy thêm Render.
+
+### Pipeline Cloud Run — Exercise 3.3
+
+`cloudbuild.yaml` khai báo bước cài dependencies và chạy pytest, sau đó build Docker image gắn tag COMMIT_SHA/latest.
+Bước push đẩy image lên Container Registry; bước deploy dùng gcloud run deploy tại asia-southeast1, đặt giới hạn instance, CPU/RAM và secret từ Secret Manager.
+Các bước phụ thuộc tuần tự qua waitFor; trigger khi push cần được cấu hình bên ngoài file YAML.
+`service.yaml` mô tả cấu hình service, concurrency 80, timeout 60 giây, scale 1–10 instance, env/secret và các probe.
+Đây là phân tích code mẫu, không phải pipeline đã chạy thực tế. Bước test mẫu chưa có `set -e` và kết thúc bằng echo, nên khi áp dụng thật cần bảo đảm lỗi pytest làm bước build thất bại.
 
 ## Part 4 — API Security
 
@@ -237,6 +271,28 @@ Số đo trong lần chạy này: build image 21 giây; dung lượng image theo
 Giới hạn: mục Public URL ready của lần chạy này chỉ kiểm tra file cấu hình Railway và PORT. Chưa deploy cloud, chưa có public URL; phần Deployment của bài vẫn cần hoàn thành tại CP6.
 
 ## AI log
+
+### Hỗ trợ hoàn thiện Part 1, Part 3 và chạy Part 7
+
+- Hỏi: Nhờ AI thực hiện phần bài còn lại sau khi hoàn thành ảnh deploy.
+- Nhận: AI bổ sung Exercise 1.1–1.2 theo code và kết quả người học đã cung cấp; so sánh file cấu hình Railway/Render và mô tả pipeline Cloud Run từ repo. AI viết script điều phối chạy nguyên bản load_test.py/run_eval.py, tạo bảng báo cáo từ JSON thực đo và workflow CI quality gate.
+- Thực hiện bằng công cụ: Python 3.11.18 trong WSL, 7 load test × 300 request; eval v1 1/23, v2 ban đầu 21/23. AI chỉ bổ sung hai entry JWT/HPA vào KNOWLEDGE_BASE (develop và production), restart v2 và eval lại 23/23, không regression. Golden dataset và script chấm không sửa.
+- Minh bạch: Các lần load test FAIL SLO được giữ nguyên; eval tắt lỗi upstream để tách chất lượng khỏi lỗi ngẫu nhiên. Console log và JSON nằm trong reports/. Các phép chạy Part 7 này do AI thực hiện qua công cụ, không khai là người học tự chạy. Người học cần đọc lại, chạy lại khi cần và giải thích được các kết quả.
+- Trạng thái: Phần local đã kiểm tra; stack production và hồ sơ Part 7 tiếp tục được cập nhật dưới đây.
+
+### Part 7 — Observability, lỗi triển khai và hiệu chỉnh phép đo
+
+- AI sửa Dockerfile mẫu Part 7: home user agent phải là /home/agent để tìm được packages trong /home/agent/.local. Sau sửa, agent chạy và promtool test rules báo SUCCESS.
+- Hai lượt Locust đầu bị compose run tự đưa topology về 2 agent dù trước đó đã up --scale 1 hoặc 3. AI phát hiện qua ps/log, loại các lượt này khỏi so sánh 1-vs-3, giữ nguyên bằng chứng trong reports/observability/discarded_two_instances. Script được sửa thêm --no-deps và kiểm tra số agent trước/sau; chạy lại là để sửa phép đo sai topology, không phải chọn số đẹp.
+- Thí nghiệm chaos A+B thực tế trên 2 agent: error rate 0.2, slow rate 0.3, 30 users. AgentHighErrorRate được quan sát firing sau 103.9 giây; AgentHighLatencyP95 sau 164 giây, cùng firing trong alerts_firing.json. Poll 10 giây; số này tính từ lúc bắt đầu áp dụng cấu hình, không phải độ trễ chính xác tới mili giây.
+- Jaeger API cũ trả 404; AI chuyển sang API v3 theo tài liệu Jaeger, lưu raw trace và chọn trace có log cùng trace_id. Bằng chứng nằm trong reports/observability/slow_trace.json, error_trace.json và trace_summary.json. Dùng truy vấn bổ sung duration >=1s để tìm tail latency.
+- Công cụ trình duyệt báo browser access host unavailable, nên chưa chụp được bốn ảnh Part 7. Không dùng ảnh dựng hoặc khai ảnh đã có.
+
+### Hỗ trợ Part 3 — Railway
+
+- Hỏi: Nhờ AI hướng dẫn deploy và kiểm tra public URL.
+- Nhận: Hướng dẫn kết nối GitHub, root directory, Redis và biến môi trường; chẩn đoán REDIS_URL sai và ký tự điều khiển trong header; AI tạo DEPLOYMENT.md từ kết quả thực tế.
+- Tự kiểm tra: Người học thao tác Railway, xác nhận Active/Online; chạy curl health 200 và ask đúng key 200. AI kiểm tra URL public nhận health 200, ready 200 và ask thiếu key 401. Không đưa key hoặc URL Redis chứa mật khẩu vào repo.
 
 ### Hỗ trợ Part 6 — Kiểm tra đầy đủ
 
